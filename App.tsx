@@ -7,9 +7,9 @@ import html2canvas from 'html2canvas';
 // @ts-ignore
 import { jsPDF } from 'jspdf';
 
-// Constants - UPDATED TO v7 TO FORCE CACHE CLEAR
-const STORAGE_KEY_INVOICE = 'fatura_agil_current_invoice_v4';
-const STORAGE_KEY_COMPANY = 'companyInfo_v7'; 
+// Constants - UPDATED TO v8 TO FORCE CACHE CLEAR
+const STORAGE_KEY_INVOICE = 'fatura_agil_current_invoice_v5';
+const STORAGE_KEY_COMPANY = 'companyInfo_v8'; 
 const STORAGE_KEY_LISTS = 'savedLists';
 
 // Initial Mock Data
@@ -22,7 +22,7 @@ const INITIAL_COMPANY: CompanyInfo = {
 
 const INITIAL_SAVED_LISTS: SavedLists = {
   clients: ["Supermercado Central", "Indústria Metalúrgica Sul", "Agro Comercial Verde", "Safra Alimentos"],
-  cargoTypes: ["Soja a Granel", "Eletrônicos", "Cimento Ensacado", "Bobinas de Aço"],
+  cargoTypes: ["Soja a Granel", "Eletrônicos", "Cimento Ensacado", "Bobinas de Aço", "Mista", "Laranja"],
   drivers: ["Carlos Silva", "Roberto Mendes", "João Ferreira"],
   plates: ["ABC-1234", "XYZ-9876", "BRA-2E19"]
 };
@@ -292,6 +292,23 @@ export default function App() {
     }), { cargoValue: 0, icms: 0, insuranceValue: 0, totalExpense: 0 });
   }, [items]);
 
+  // Safra Specific Totals
+  const safraSpecificTotals = useMemo(() => {
+    if (clientName !== "Safra Alimentos") return null;
+
+    return items.reduce((acc, item) => {
+        const type = (item.cargoType || "").toLowerCase();
+        const insurance = Number(item.insuranceValue || 0);
+
+        if (type.includes("mista")) {
+            acc.mista += insurance;
+        } else if (type.includes("laranja")) {
+            acc.laranja += insurance;
+        }
+        return acc;
+    }, { mista: 0, laranja: 0 });
+  }, [items, clientName]);
+
   // Dynamic Reference Text Generation
   const referenceText = useMemo(() => {
     if (!referenceMonth) return "Referente aos serviços de transporte/seguros de cargas.";
@@ -322,8 +339,8 @@ export default function App() {
         // 2. Setup clone styles to ensure it renders perfectly off-screen
         // Fixed width ensures the table layout doesn't break or scroll
         // Using a high resolution width helps with quality, jsPDF will scale it down to fit Portrait
-        // UPDATED: Increased to 1500px to ensure the 1000px+ table fits easily without clipping
-        const fixedWidth = 1500; 
+        // UPDATED: Using 1600px for LANDSCAPE capture
+        const fixedWidth = 1600; 
         clone.style.position = 'absolute';
         clone.style.left = '-9999px';
         clone.style.top = '0';
@@ -421,17 +438,17 @@ export default function App() {
         // Clean up
         document.body.removeChild(clone);
 
-        // 6. Generate PDF in PORTRAIT
+        // 6. Generate PDF in LANDSCAPE
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
         
         const pdf = new jsPDF({
-            orientation: 'portrait',
+            orientation: 'landscape', // CHANGED TO LANDSCAPE
             unit: 'mm',
             format: 'a4'
         });
 
-        const pdfWidth = 210; // A4 Portrait Width
-        const pdfHeight = 297; // A4 Portrait Height
+        const pdfWidth = 297; // A4 Landscape Width
+        const pdfHeight = 210; // A4 Landscape Height
         const margin = 10;
         
         const imgProps = pdf.getImageProperties(imgData);
@@ -731,6 +748,23 @@ export default function App() {
                </tr>
             </tfoot>
           </table>
+
+          {/* SAFRA ALIMENTOS SPECIFIC SECTION */}
+          {safraSpecificTotals && (
+             <div className="mt-4 flex justify-end">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex gap-8 items-center text-lg">
+                    <div className="flex flex-col items-end">
+                        <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Seguro (Carga Mista)</span>
+                        <span className="font-bold text-slate-900">{formatCurrency(safraSpecificTotals.mista)}</span>
+                    </div>
+                    <div className="h-10 w-px bg-slate-300"></div>
+                    <div className="flex flex-col items-end">
+                        <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Seguro (Carga Laranja)</span>
+                        <span className="font-bold text-slate-900">{formatCurrency(safraSpecificTotals.laranja)}</span>
+                    </div>
+                </div>
+             </div>
+          )}
           
           <div className="mt-4 no-print" data-html2canvas-ignore="true">
             <button 
@@ -756,7 +790,7 @@ export default function App() {
             ></textarea>
           </div>
           <div className="text-center mt-6 text-slate-300 text-xs no-print">
-            Sistema FaturaÁgil v3.1 (PDF Fix)
+            Sistema FaturaÁgil v4.0 (Landscape)
           </div>
         </div>
       </div>
