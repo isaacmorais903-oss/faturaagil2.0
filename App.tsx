@@ -7,9 +7,9 @@ import html2canvas from 'html2canvas';
 // @ts-ignore
 import { jsPDF } from 'jspdf';
 
-// Constants - UPDATED TO v6 TO FORCE CACHE CLEAR
-const STORAGE_KEY_INVOICE = 'fatura_agil_current_invoice_v3';
-const STORAGE_KEY_COMPANY = 'companyInfo_v6'; 
+// Constants - UPDATED TO v7 TO FORCE CACHE CLEAR
+const STORAGE_KEY_INVOICE = 'fatura_agil_current_invoice_v4';
+const STORAGE_KEY_COMPANY = 'companyInfo_v7'; 
 const STORAGE_KEY_LISTS = 'savedLists';
 
 // Initial Mock Data
@@ -322,7 +322,8 @@ export default function App() {
         // 2. Setup clone styles to ensure it renders perfectly off-screen
         // Fixed width ensures the table layout doesn't break or scroll
         // Using a high resolution width helps with quality, jsPDF will scale it down to fit Portrait
-        const fixedWidth = 1100; 
+        // UPDATED: Increased to 1500px to ensure the 1000px+ table fits easily without clipping
+        const fixedWidth = 1500; 
         clone.style.position = 'absolute';
         clone.style.left = '-9999px';
         clone.style.top = '0';
@@ -620,30 +621,30 @@ export default function App() {
             <thead>
               <tr className="bg-slate-100 text-slate-700 uppercase tracking-wider text-base font-bold text-left">
                 {/* Modified Alignment: Centered Data Column */}
-                <th className="py-4 px-4 text-center rounded-tl-lg">Data</th>
-                <th className="p-4">Tipo Carga</th>
-                <th className="p-4">Motorista</th>
-                <th className="p-4">Placa</th>
-                <th className="p-4 text-right">Valor Carga</th>
-                <th className="p-4 text-right">ICMS</th>
-                <th className="p-4 text-right">Seguro</th>
+                <th className="py-3 px-2 text-center rounded-tl-lg">Data</th>
+                <th className="px-2 py-3">Tipo Carga</th>
+                <th className="px-2 py-3">Motorista</th>
+                <th className="px-2 py-3">Placa</th>
+                <th className="px-2 py-3 text-right">Valor Carga</th>
+                <th className="px-2 py-3 text-right">ICMS</th>
+                <th className="px-2 py-3 text-right">Seguro</th>
                 {/* Modified Alignment: Removed Right Padding on last value column */}
-                <th className="py-4 pl-4 pr-0 text-right">Total Despesa</th>
-                <th className="p-4 rounded-tr-lg w-10 no-print"></th>
+                <th className="py-3 pl-2 pr-0 text-right">Total Despesa</th>
+                <th className="px-2 py-3 rounded-tr-lg w-10 no-print"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {items.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
                   {/* Modified Alignment: Centered Data Column */}
-                  <td className="py-3 px-3 align-middle text-center">
+                  <td className="py-3 px-2 align-middle text-center">
                     <DateInput 
                       value={item.date} 
                       onChange={(val) => handleItemChange(item.id, 'date', val)}
                       className="w-28 bg-brand-50 hover:bg-brand-100 focus:bg-white border border-brand-100 hover:border-brand-200 focus:border-brand-500 rounded px-2 py-2 outline-none transition-colors text-lg font-medium"
                     />
                   </td>
-                  <td className="p-3 align-middle">
+                  <td className="px-2 py-3 align-middle">
                     <Autocomplete
                       value={item.cargoType}
                       onChange={(val) => handleItemChange(item.id, 'cargoType', val)}
@@ -653,7 +654,7 @@ export default function App() {
                       className="min-w-[140px]"
                     />
                   </td>
-                  <td className="p-3 align-middle">
+                  <td className="px-2 py-3 align-middle">
                      <Autocomplete
                       value={item.driver}
                       onChange={(val) => handleItemChange(item.id, 'driver', val)}
@@ -663,7 +664,7 @@ export default function App() {
                       className="min-w-[160px]"
                     />
                   </td>
-                  <td className="p-3 align-middle">
+                  <td className="px-2 py-3 align-middle">
                      <Autocomplete
                       value={item.plate}
                       onChange={(val) => handleItemChange(item.id, 'plate', val)}
@@ -673,21 +674,21 @@ export default function App() {
                       className="w-32"
                     />
                   </td>
-                  <td className="p-3 align-middle text-right w-36">
+                  <td className="px-2 py-3 align-middle text-right w-36">
                     <CurrencyInput
                       value={item.cargoValue || 0}
                       onChange={(val) => handleItemChange(item.id, 'cargoValue', val)}
                       showSymbol={false}
                     />
                   </td>
-                  <td className="p-3 align-middle text-right w-36">
+                  <td className="px-2 py-3 align-middle text-right w-36">
                     <CurrencyInput
                       value={item.icms || 0}
                       onChange={(val) => handleItemChange(item.id, 'icms', val)}
                       showSymbol={false}
                     />
                   </td>
-                  <td className="p-3 align-middle text-right w-36">
+                  <td className="px-2 py-3 align-middle text-right w-36">
                     <CurrencyInput
                       value={item.insuranceValue || 0}
                       onChange={(val) => handleItemChange(item.id, 'insuranceValue', val)}
@@ -695,14 +696,14 @@ export default function App() {
                     />
                   </td>
                   {/* Modified Alignment: Removed Right Padding */}
-                  <td className="py-3 pl-3 pr-0 align-middle text-right w-40">
+                  <td className="py-3 pl-2 pr-0 align-middle text-right w-40">
                     <CurrencyInput
                       value={item.totalExpense || 0}
                       readOnly={true}
                       showSymbol={false}
                     />
                   </td>
-                  <td className="p-3 align-middle text-center no-print w-10">
+                  <td className="px-2 py-3 align-middle text-center no-print w-10">
                     <button 
                       type="button"
                       onClick={() => removeItem(item.id)}
@@ -755,7 +756,7 @@ export default function App() {
             ></textarea>
           </div>
           <div className="text-center mt-6 text-slate-300 text-xs no-print">
-            Sistema FaturaÁgil v3.0
+            Sistema FaturaÁgil v3.1 (PDF Fix)
           </div>
         </div>
       </div>
