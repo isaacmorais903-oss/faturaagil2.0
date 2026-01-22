@@ -7,9 +7,9 @@ import html2canvas from 'html2canvas';
 // @ts-ignore
 import { jsPDF } from 'jspdf';
 
-// Constants - UPDATED TO v8 TO FORCE CACHE CLEAR
-const STORAGE_KEY_INVOICE = 'fatura_agil_current_invoice_v5';
-const STORAGE_KEY_COMPANY = 'companyInfo_v8'; 
+// Constants - UPDATED TO v9 TO FORCE CACHE CLEAR
+const STORAGE_KEY_INVOICE = 'fatura_agil_current_invoice_v6';
+const STORAGE_KEY_COMPANY = 'companyInfo_v9'; 
 const STORAGE_KEY_LISTS = 'savedLists';
 
 // Initial Mock Data
@@ -337,9 +337,6 @@ export default function App() {
         const clone = element.cloneNode(true) as HTMLElement;
         
         // 2. Setup clone styles to ensure it renders perfectly off-screen
-        // Fixed width ensures the table layout doesn't break or scroll
-        // Using a high resolution width helps with quality, jsPDF will scale it down to fit Portrait
-        // UPDATED: Using 1600px for LANDSCAPE capture
         const fixedWidth = 1600; 
         clone.style.position = 'absolute';
         clone.style.left = '-9999px';
@@ -353,6 +350,30 @@ export default function App() {
         // Reset some container styles that might interfere
         clone.classList.remove('shadow-xl', 'rounded-xl', 'mt-6', 'max-w-7xl', 'mx-auto', 'w-[98%]', 'max-w-[1600px]', 'w-full'); 
         clone.classList.add('p-0', 'm-0');
+
+        // --- COMPACT LAYOUT FOR PDF OPTIMIZATION ---
+        // Reduce vertical padding in headers and cells to help it fit Landscape aspect ratio
+        const header = clone.querySelector('header');
+        if(header) header.classList.replace('p-8', 'p-4');
+        
+        const infoSection = clone.querySelector('.bg-slate-50\\/50');
+        if(infoSection) infoSection.classList.replace('p-8', 'p-4');
+
+        const tableContainer = clone.querySelector('.overflow-x-auto');
+        if(tableContainer) tableContainer.classList.replace('p-8', 'p-4');
+
+        const footer = clone.querySelector('.bg-slate-50.p-8');
+        if(footer) footer.classList.replace('p-8', 'p-4');
+
+        // Reduce Table Cell Padding
+        const cells = clone.querySelectorAll('td, th');
+        cells.forEach(cell => {
+            // Replace larger paddings with smaller ones for print
+            cell.classList.replace('py-3', 'py-2');
+            cell.classList.replace('py-4', 'py-2');
+            cell.classList.replace('p-4', 'p-2');
+            cell.classList.replace('p-5', 'p-2');
+        });
 
         // 3. FLATTEN INPUTS: Convert inputs/selects to text for crisp rendering
         const inputs = clone.querySelectorAll('input, select, textarea');
@@ -410,8 +431,6 @@ export default function App() {
         ignoredData.forEach(el => el.remove());
 
         // FIX: Reveal print-only elements (like the backup logo)
-        // Since we removed the interactive logo (via .no-print), we need to ensure
-        // the print version (which is .hidden .print:block) becomes visible in the clone.
         const hiddenPrintElements = clone.querySelectorAll('.hidden.print\\:block');
         hiddenPrintElements.forEach((el) => {
             el.classList.remove('hidden');
@@ -442,14 +461,14 @@ export default function App() {
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
         
         const pdf = new jsPDF({
-            orientation: 'landscape', // CHANGED TO LANDSCAPE
+            orientation: 'landscape', 
             unit: 'mm',
             format: 'a4'
         });
 
         const pdfWidth = 297; // A4 Landscape Width
         const pdfHeight = 210; // A4 Landscape Height
-        const margin = 10;
+        const margin = 5; // Reduced margin to 5mm to fill page
         
         const imgProps = pdf.getImageProperties(imgData);
         const ratio = imgProps.width / imgProps.height;
@@ -460,7 +479,7 @@ export default function App() {
         let finalWidth = availableWidth;
         let finalHeight = finalWidth / ratio;
 
-        // Fit to page
+        // Fit to page (only if height exceeds, otherwise maximize width)
         if (finalHeight > availableHeight) {
             finalHeight = availableHeight;
             finalWidth = finalHeight * ratio;
@@ -743,7 +762,7 @@ export default function App() {
                  <td className="p-5 text-right">{formatCurrency(totals.icms)}</td>
                  <td className="p-5 text-right">{formatCurrency(totals.insuranceValue)}</td>
                  {/* Modified: Removed right padding and removed text-2xl */}
-                 <td className="py-5 pl-5 pr-0 text-right text-brand-700">{formatCurrency(totals.totalExpense)}</td>
+                 <td className="py-5 pl-5 pr-0 text-right text-red-600 font-bold">{formatCurrency(totals.totalExpense)}</td>
                  <td className="no-print" data-html2canvas-ignore="true"></td>
                </tr>
             </tfoot>
@@ -785,12 +804,12 @@ export default function App() {
             <textarea 
               value={observations}
               onChange={(e) => setObservations(e.target.value)}
-              className="w-full bg-brand-50 border border-brand-100 rounded p-4 text-brand-900 font-medium text-lg h-24 resize-none print:border-none print:p-0 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none" 
+              className="w-full bg-brand-50 border border-brand-100 rounded p-4 text-blue-700 font-medium text-lg h-24 resize-none print:border-none print:p-0 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none" 
               placeholder="Digite observações adicionais para sair na fatura..."
             ></textarea>
           </div>
           <div className="text-center mt-6 text-slate-300 text-xs no-print">
-            Sistema FaturaÁgil v4.0 (Landscape)
+            Sistema FaturaÁgil v4.1 (Landscape)
           </div>
         </div>
       </div>
