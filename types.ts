@@ -8,6 +8,10 @@ export interface InvoiceItem {
   icms: number;
   insuranceValue: number;
   totalExpense: number;
+  // Tristao Specific Fields
+  nf?: string;
+  cte?: string;
+  serviceValue?: number;
 }
 
 export interface SavedLists {
@@ -34,4 +38,7 @@ export interface SmartParseResult {
   icms?: number;
   insuranceValue?: number;
   totalExpense?: number;
+  nf?: string;
+  cte?: string;
+  serviceValue?: number;
 }

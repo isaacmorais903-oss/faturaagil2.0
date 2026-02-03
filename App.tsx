@@ -7,9 +7,9 @@ import html2canvas from 'html2canvas';
 // @ts-ignore
 import { jsPDF } from 'jspdf';
 
-// Constants - UPDATED TO v9 TO FORCE CACHE CLEAR
-const STORAGE_KEY_INVOICE = 'fatura_agil_current_invoice_v6';
-const STORAGE_KEY_COMPANY = 'companyInfo_v9'; 
+// Constants - UPDATED TO v10 TO FORCE CACHE CLEAR
+const STORAGE_KEY_INVOICE = 'fatura_agil_current_invoice_v7';
+const STORAGE_KEY_COMPANY = 'companyInfo_v10'; 
 const STORAGE_KEY_LISTS = 'savedLists';
 
 // Initial Mock Data
@@ -21,7 +21,7 @@ const INITIAL_COMPANY: CompanyInfo = {
 };
 
 const INITIAL_SAVED_LISTS: SavedLists = {
-  clients: ["Supermercado Central", "Indústria Metalúrgica Sul", "Agro Comercial Verde", "Safra Alimentos"],
+  clients: ["Supermercado Central", "Indústria Metalúrgica Sul", "Agro Comercial Verde", "Safra Alimentos", "Tristao Transportes (Luciano)"],
   cargoTypes: ["Soja a Granel", "Eletrônicos", "Cimento Ensacado", "Bobinas de Aço", "Mista", "Laranja"],
   drivers: ["Carlos Silva", "Roberto Mendes", "João Ferreira"],
   plates: ["ABC-1234", "XYZ-9876", "BRA-2E19"]
@@ -158,7 +158,10 @@ export default function App() {
       cargoValue: 0,
       icms: 0,
       insuranceValue: 0,
-      totalExpense: 0
+      totalExpense: 0,
+      nf: '',
+      cte: '',
+      serviceValue: 0
     }];
   });
   
@@ -166,6 +169,9 @@ export default function App() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- DERIVED STATE: MODE CHECK ---
+  const isTristaoMode = clientName === "Tristao Transportes (Luciano)";
 
   // --- PERSISTENCE EFFECTS ---
 
@@ -225,10 +231,13 @@ export default function App() {
             updatedItem.insuranceValue = val * 0.005; // 0.5%
         }
 
-        // Auto-calculate Total Despesa: ICMS + Seguro
-        const icms = Number(updatedItem.icms) || 0;
-        const insurance = Number(updatedItem.insuranceValue) || 0;
-        updatedItem.totalExpense = icms + insurance;
+        // Auto-calculate Total Despesa (Standard Mode Only)
+        // If in Tristao mode, we don't auto-calculate 'serviceValue' from other fields currently
+        if (field === 'icms' || field === 'insuranceValue' || field === 'cargoValue') {
+             const icms = Number(updatedItem.icms) || 0;
+             const insurance = Number(updatedItem.insuranceValue) || 0;
+             updatedItem.totalExpense = icms + insurance;
+        }
 
         return updatedItem;
       }
@@ -246,7 +255,10 @@ export default function App() {
       cargoValue: 0,
       icms: 0,
       insuranceValue: 0,
-      totalExpense: 0
+      totalExpense: 0,
+      nf: '',
+      cte: '',
+      serviceValue: 0
     }]);
   };
 
@@ -289,7 +301,8 @@ export default function App() {
       icms: acc.icms + Number(item.icms || 0),
       insuranceValue: acc.insuranceValue + Number(item.insuranceValue || 0),
       totalExpense: acc.totalExpense + Number(item.totalExpense || 0),
-    }), { cargoValue: 0, icms: 0, insuranceValue: 0, totalExpense: 0 });
+      serviceValue: acc.serviceValue + Number(item.serviceValue || 0),
+    }), { cargoValue: 0, icms: 0, insuranceValue: 0, totalExpense: 0, serviceValue: 0 });
   }, [items]);
 
   // Safra Specific Totals
@@ -655,90 +668,161 @@ export default function App() {
         <div className="p-8 overflow-x-auto">
           <table className="w-full min-w-[1000px] border-collapse text-lg">
             <thead>
-              <tr className="bg-slate-100 text-slate-700 uppercase tracking-wider text-base font-bold text-left">
-                {/* Modified Alignment: Centered Data Column */}
-                <th className="py-3 px-2 text-center rounded-tl-lg">Data</th>
-                <th className="px-2 py-3">Tipo Carga</th>
-                <th className="px-2 py-3">Motorista</th>
-                <th className="px-2 py-3">Placa</th>
-                <th className="px-2 py-3 text-right">Valor Carga</th>
-                <th className="px-2 py-3 text-right">ICMS</th>
-                <th className="px-2 py-3 text-right">Seguro</th>
-                {/* Modified Alignment: Removed Right Padding on last value column */}
-                <th className="py-3 pl-2 pr-0 text-right">Total Despesa</th>
-                <th className="px-2 py-3 rounded-tr-lg w-10 no-print"></th>
-              </tr>
+              {isTristaoMode ? (
+                 <tr className="bg-slate-100 text-slate-700 uppercase tracking-wider text-base font-bold text-left">
+                    <th className="py-3 px-2 text-center rounded-tl-lg">Data</th>
+                    <th className="px-2 py-3">NF</th>
+                    <th className="px-2 py-3">CT-e</th>
+                    <th className="px-2 py-3">Motorista</th>
+                    <th className="px-2 py-3">Placa</th>
+                    <th className="py-3 pl-2 pr-0 text-right">Total Serviço</th>
+                    <th className="px-2 py-3 rounded-tr-lg w-10 no-print"></th>
+                 </tr>
+              ) : (
+                <tr className="bg-slate-100 text-slate-700 uppercase tracking-wider text-base font-bold text-left">
+                  <th className="py-3 px-2 text-center rounded-tl-lg">Data</th>
+                  <th className="px-2 py-3">Tipo Carga</th>
+                  <th className="px-2 py-3">Motorista</th>
+                  <th className="px-2 py-3">Placa</th>
+                  <th className="px-2 py-3 text-right">Valor Carga</th>
+                  <th className="px-2 py-3 text-right">ICMS</th>
+                  <th className="px-2 py-3 text-right">Seguro</th>
+                  <th className="py-3 pl-2 pr-0 text-right">Total Despesa</th>
+                  <th className="px-2 py-3 rounded-tr-lg w-10 no-print"></th>
+                </tr>
+              )}
             </thead>
             <tbody className="divide-y divide-slate-100">
               {items.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
-                  {/* Modified Alignment: Centered Data Column */}
-                  <td className="py-3 px-2 align-middle text-center">
-                    <DateInput 
-                      value={item.date} 
-                      onChange={(val) => handleItemChange(item.id, 'date', val)}
-                      className="w-28 bg-brand-50 hover:bg-brand-100 focus:bg-white border border-brand-100 hover:border-brand-200 focus:border-brand-500 rounded px-2 py-2 outline-none transition-colors text-lg font-medium"
-                    />
-                  </td>
-                  <td className="px-2 py-3 align-middle">
-                    <Autocomplete
-                      value={item.cargoType}
-                      onChange={(val) => handleItemChange(item.id, 'cargoType', val)}
-                      options={savedLists.cargoTypes}
-                      onSaveOption={(val) => saveToList('cargoTypes', val)}
-                      placeholder="Tipo"
-                      className="min-w-[140px]"
-                    />
-                  </td>
-                  <td className="px-2 py-3 align-middle">
-                     <Autocomplete
-                      value={item.driver}
-                      onChange={(val) => handleItemChange(item.id, 'driver', val)}
-                      options={savedLists.drivers}
-                      onSaveOption={(val) => saveToList('drivers', val)}
-                      placeholder="Motorista"
-                      className="min-w-[160px]"
-                    />
-                  </td>
-                  <td className="px-2 py-3 align-middle">
-                     <Autocomplete
-                      value={item.plate}
-                      onChange={(val) => handleItemChange(item.id, 'plate', val)}
-                      options={savedLists.plates}
-                      onSaveOption={(val) => saveToList('plates', val)}
-                      placeholder="ABC-0000"
-                      className="w-32"
-                    />
-                  </td>
-                  <td className="px-2 py-3 align-middle text-right w-36">
-                    <CurrencyInput
-                      value={item.cargoValue || 0}
-                      onChange={(val) => handleItemChange(item.id, 'cargoValue', val)}
-                      showSymbol={false}
-                    />
-                  </td>
-                  <td className="px-2 py-3 align-middle text-right w-36">
-                    <CurrencyInput
-                      value={item.icms || 0}
-                      onChange={(val) => handleItemChange(item.id, 'icms', val)}
-                      showSymbol={false}
-                    />
-                  </td>
-                  <td className="px-2 py-3 align-middle text-right w-36">
-                    <CurrencyInput
-                      value={item.insuranceValue || 0}
-                      onChange={(val) => handleItemChange(item.id, 'insuranceValue', val)}
-                      showSymbol={false}
-                    />
-                  </td>
-                  {/* Modified Alignment: Removed Right Padding */}
-                  <td className="py-3 pl-2 pr-0 align-middle text-right w-40">
-                    <CurrencyInput
-                      value={item.totalExpense || 0}
-                      readOnly={true}
-                      showSymbol={false}
-                    />
-                  </td>
+                  
+                  {isTristaoMode ? (
+                      /* TRISTAO MODE ROWS */
+                      <>
+                        <td className="py-3 px-2 align-middle text-center">
+                            <DateInput 
+                            value={item.date} 
+                            onChange={(val) => handleItemChange(item.id, 'date', val)}
+                            className="w-28 bg-brand-50 hover:bg-brand-100 focus:bg-white border border-brand-100 hover:border-brand-200 focus:border-brand-500 rounded px-2 py-2 outline-none transition-colors text-lg font-medium"
+                            />
+                        </td>
+                        <td className="px-2 py-3 align-middle">
+                            <input
+                                type="text"
+                                value={item.nf || ''}
+                                onChange={(e) => handleItemChange(item.id, 'nf', e.target.value)}
+                                className="w-full min-w-[100px] border border-brand-100 bg-brand-50 hover:bg-brand-100 focus:bg-white rounded px-2 py-2 outline-none transition-colors text-lg font-medium text-slate-900"
+                                placeholder="NF"
+                            />
+                        </td>
+                        <td className="px-2 py-3 align-middle">
+                            <input
+                                type="text"
+                                value={item.cte || ''}
+                                onChange={(e) => handleItemChange(item.id, 'cte', e.target.value)}
+                                className="w-full min-w-[100px] border border-brand-100 bg-brand-50 hover:bg-brand-100 focus:bg-white rounded px-2 py-2 outline-none transition-colors text-lg font-medium text-slate-900"
+                                placeholder="CT-e"
+                            />
+                        </td>
+                        <td className="px-2 py-3 align-middle">
+                            <Autocomplete
+                            value={item.driver}
+                            onChange={(val) => handleItemChange(item.id, 'driver', val)}
+                            options={savedLists.drivers}
+                            onSaveOption={(val) => saveToList('drivers', val)}
+                            placeholder="Motorista"
+                            className="min-w-[160px]"
+                            />
+                        </td>
+                        <td className="px-2 py-3 align-middle">
+                            <Autocomplete
+                            value={item.plate}
+                            onChange={(val) => handleItemChange(item.id, 'plate', val)}
+                            options={savedLists.plates}
+                            onSaveOption={(val) => saveToList('plates', val)}
+                            placeholder="ABC-0000"
+                            className="w-32"
+                            />
+                        </td>
+                        <td className="py-3 pl-2 pr-0 align-middle text-right w-40">
+                            <CurrencyInput
+                                value={item.serviceValue || 0}
+                                onChange={(val) => handleItemChange(item.id, 'serviceValue', val)}
+                                showSymbol={false}
+                            />
+                        </td>
+                      </>
+                  ) : (
+                      /* STANDARD MODE ROWS */
+                      <>
+                        <td className="py-3 px-2 align-middle text-center">
+                            <DateInput 
+                            value={item.date} 
+                            onChange={(val) => handleItemChange(item.id, 'date', val)}
+                            className="w-28 bg-brand-50 hover:bg-brand-100 focus:bg-white border border-brand-100 hover:border-brand-200 focus:border-brand-500 rounded px-2 py-2 outline-none transition-colors text-lg font-medium"
+                            />
+                        </td>
+                        <td className="px-2 py-3 align-middle">
+                            <Autocomplete
+                            value={item.cargoType}
+                            onChange={(val) => handleItemChange(item.id, 'cargoType', val)}
+                            options={savedLists.cargoTypes}
+                            onSaveOption={(val) => saveToList('cargoTypes', val)}
+                            placeholder="Tipo"
+                            className="min-w-[140px]"
+                            />
+                        </td>
+                        <td className="px-2 py-3 align-middle">
+                            <Autocomplete
+                            value={item.driver}
+                            onChange={(val) => handleItemChange(item.id, 'driver', val)}
+                            options={savedLists.drivers}
+                            onSaveOption={(val) => saveToList('drivers', val)}
+                            placeholder="Motorista"
+                            className="min-w-[160px]"
+                            />
+                        </td>
+                        <td className="px-2 py-3 align-middle">
+                            <Autocomplete
+                            value={item.plate}
+                            onChange={(val) => handleItemChange(item.id, 'plate', val)}
+                            options={savedLists.plates}
+                            onSaveOption={(val) => saveToList('plates', val)}
+                            placeholder="ABC-0000"
+                            className="w-32"
+                            />
+                        </td>
+                        <td className="px-2 py-3 align-middle text-right w-36">
+                            <CurrencyInput
+                            value={item.cargoValue || 0}
+                            onChange={(val) => handleItemChange(item.id, 'cargoValue', val)}
+                            showSymbol={false}
+                            />
+                        </td>
+                        <td className="px-2 py-3 align-middle text-right w-36">
+                            <CurrencyInput
+                            value={item.icms || 0}
+                            onChange={(val) => handleItemChange(item.id, 'icms', val)}
+                            showSymbol={false}
+                            />
+                        </td>
+                        <td className="px-2 py-3 align-middle text-right w-36">
+                            <CurrencyInput
+                            value={item.insuranceValue || 0}
+                            onChange={(val) => handleItemChange(item.id, 'insuranceValue', val)}
+                            showSymbol={false}
+                            />
+                        </td>
+                        <td className="py-3 pl-2 pr-0 align-middle text-right w-40">
+                            <CurrencyInput
+                            value={item.totalExpense || 0}
+                            readOnly={true}
+                            showSymbol={false}
+                            />
+                        </td>
+                      </>
+                  )}
+
                   <td className="px-2 py-3 align-middle text-center no-print w-10">
                     <button 
                       type="button"
@@ -755,16 +839,22 @@ export default function App() {
             </tbody>
             {/* Modified Footer: Changed font-size to text-lg to match body */}
             <tfoot className="border-t-2 border-slate-200 font-bold text-slate-900 bg-slate-50 text-lg">
-               <tr>
-                 {/* Modified: Removed text-sm, added text-lg, removed left padding */}
-                 <td colSpan={4} className="py-5 pr-5 pl-0 text-right uppercase tracking-wide text-slate-500 font-bold">Totais da Fatura</td>
-                 <td className="p-5 text-right">{formatCurrency(totals.cargoValue)}</td>
-                 <td className="p-5 text-right">{formatCurrency(totals.icms)}</td>
-                 <td className="p-5 text-right">{formatCurrency(totals.insuranceValue)}</td>
-                 {/* Modified: Removed right padding and removed text-2xl */}
-                 <td className="py-5 pl-5 pr-0 text-right text-red-600 font-bold">{formatCurrency(totals.totalExpense)}</td>
-                 <td className="no-print" data-html2canvas-ignore="true"></td>
-               </tr>
+               {isTristaoMode ? (
+                  <tr>
+                    <td colSpan={5} className="py-5 pr-5 pl-0 text-right uppercase tracking-wide text-slate-500 font-bold">Total Serviço</td>
+                    <td className="py-5 pl-5 pr-0 text-right text-red-600 font-bold">{formatCurrency(totals.serviceValue)}</td>
+                    <td className="no-print" data-html2canvas-ignore="true"></td>
+                  </tr>
+               ) : (
+                   <tr>
+                    <td colSpan={4} className="py-5 pr-5 pl-0 text-right uppercase tracking-wide text-slate-500 font-bold">Totais da Fatura</td>
+                    <td className="p-5 text-right">{formatCurrency(totals.cargoValue)}</td>
+                    <td className="p-5 text-right">{formatCurrency(totals.icms)}</td>
+                    <td className="p-5 text-right">{formatCurrency(totals.insuranceValue)}</td>
+                    <td className="py-5 pl-5 pr-0 text-right text-red-600 font-bold">{formatCurrency(totals.totalExpense)}</td>
+                    <td className="no-print" data-html2canvas-ignore="true"></td>
+                   </tr>
+               )}
             </tfoot>
           </table>
 
@@ -809,7 +899,7 @@ export default function App() {
             ></textarea>
           </div>
           <div className="text-center mt-6 text-slate-300 text-xs no-print">
-            Sistema FaturaÁgil v4.1 (Landscape)
+            Sistema FaturaÁgil v4.2 (Landscape)
           </div>
         </div>
       </div>
