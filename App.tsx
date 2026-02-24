@@ -305,22 +305,7 @@ export default function App() {
     }), { cargoValue: 0, icms: 0, insuranceValue: 0, totalExpense: 0, serviceValue: 0 });
   }, [items]);
 
-  // Safra Specific Totals
-  const safraSpecificTotals = useMemo(() => {
-    if (clientName !== "Safra Alimentos") return null;
 
-    return items.reduce((acc, item) => {
-        const type = (item.cargoType || "").toLowerCase();
-        const insurance = Number(item.insuranceValue || 0);
-
-        if (type.includes("mista")) {
-            acc.mista += insurance;
-        } else if (type.includes("laranja")) {
-            acc.laranja += insurance;
-        }
-        return acc;
-    }, { mista: 0, laranja: 0 });
-  }, [items, clientName]);
 
   // Dynamic Reference Text Generation
   const referenceText = useMemo(() => {
@@ -859,17 +844,12 @@ export default function App() {
           </table>
 
           {/* SAFRA ALIMENTOS SPECIFIC SECTION */}
-          {safraSpecificTotals && (
+          {clientName === "Safra Alimentos" && (
              <div className="mt-4 flex justify-end">
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex gap-8 items-center text-lg">
                     <div className="flex flex-col items-end">
-                        <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Seguro (Carga Mista)</span>
-                        <span className="font-bold text-slate-900">{formatCurrency(safraSpecificTotals.mista)}</span>
-                    </div>
-                    <div className="h-10 w-px bg-slate-300"></div>
-                    <div className="flex flex-col items-end">
-                        <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Seguro (Carga Laranja)</span>
-                        <span className="font-bold text-slate-900">{formatCurrency(safraSpecificTotals.laranja)}</span>
+                        <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Valor Total dos Seguros</span>
+                        <span className="font-bold text-slate-900">{formatCurrency(totals.totalExpense)}</span>
                     </div>
                 </div>
              </div>
